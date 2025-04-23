@@ -59,7 +59,7 @@ bucket = os.getenv("BUCKET")
 ####################################################################################################
 
 
-
+import uuid
 
 @app.post("/posts")
 async def post_a_post(post: Post, authorization: str | None = Header(default=None)):
@@ -69,6 +69,13 @@ async def post_a_post(post: Post, authorization: str | None = Header(default=Non
     logger.info(f"title : {post.title}")
     logger.info(f"body : {post.body}")
     logger.info(f"user : {authorization}")
+    title = post.title
+    body = post.body
+    user = authorization
+    str_id = f'{uuid.uuid4()}'
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table("posts")
+    res = table.put_item(Item={'id': str_id, 'user': user, 'title': title, 'body': body})
 
 
     # Doit retourner le résultat de la requête la table dynamodb
