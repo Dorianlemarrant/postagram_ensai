@@ -21,7 +21,9 @@ class ServerlessStack(TerraformStack):
         
         bucket = S3Bucket(
             self, "bucket",
-            bucket_prefix=""
+            bucket_prefix = "s3_de_qualité",
+            acl="private",
+            force_destroy=True
         )
 
         # NE PAS TOUCHER !!!!
@@ -37,19 +39,23 @@ class ServerlessStack(TerraformStack):
 
         dynamo_table = DynamodbTable(
             self, "DynamodDB-table",
-            name= "",
-            hash_key="",
-            range_key="",
+            name= "posts",
+            hash_key="user",
+            range_key="id",
             attribute=[
-                DynamodbTableAttribute(name="",type="S" ),
-                DynamodbTableAttribute(name="",type="S" ),
+                DynamodbTableAttribute(name="id",type="S" ),
+                DynamodbTableAttribute(name="user",type="S" )
             ],
             billing_mode="PROVISIONED",
             read_capacity=5,
             write_capacity=5
         )
 
-        code = TerraformAsset()
+        code = TerraformAsset(
+            self, "code",
+            path="./lambda",
+            type=AssetType.ARCHIVE
+            )
 
         lambda_function = LambdaFunction(
             self, "lambda",

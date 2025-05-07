@@ -18,10 +18,10 @@ import base64
 bucket=""
 
 # Mettez ici le nom de la table dynamoDB créée dans la partie serverless
-dynamo_table=""
+dynamo_table="posts"
 
 # Mettez ici l'url de votre dépôt github. Votre dépôt doit être public !!!
-your_repo=""
+your_repo="https://github.com/Dorianlemarrant/postagram_ensai"
 
 # Le user data pour lancer votre websservice. Il fonctionne tel quel
 user_data= base64.b64encode(f"""#!/bin/bash
