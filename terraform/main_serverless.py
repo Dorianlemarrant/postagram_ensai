@@ -11,6 +11,10 @@ from cdktf_cdktf_provider_aws.s3_bucket import S3Bucket
 from cdktf_cdktf_provider_aws.s3_bucket_cors_configuration import S3BucketCorsConfiguration, S3BucketCorsConfigurationCorsRule
 from cdktf_cdktf_provider_aws.s3_bucket_notification import S3BucketNotification, S3BucketNotificationLambdaFunction
 from cdktf_cdktf_provider_aws.dynamodb_table import DynamodbTable, DynamodbTableAttribute
+import os
+
+
+
 
 class ServerlessStack(TerraformStack):
     def __init__(self, scope: Construct, id: str):
@@ -21,7 +25,7 @@ class ServerlessStack(TerraformStack):
         
         bucket = S3Bucket(
             self, "bucket",
-            bucket_prefix = "s3_de_qualité",
+            bucket_prefix = "s3",
             acl="private",
             force_destroy=True
         )
@@ -57,16 +61,17 @@ class ServerlessStack(TerraformStack):
             type=AssetType.ARCHIVE
             )
 
+        account_id = DataAwsCallerIdentity(self, "caller").account_id
         lambda_function = LambdaFunction(
             self, "lambda",
-            function_name="",
-            runtime="python3.10",
+            function_name="lambda",
+            runtime="python3.8",
             memory_size=128,
             timeout=60,
-            role=f"",
+            role=f"arn:aws:iam::{account_id}:role/LabRole",
             filename= code.path,
-            handler="",
-            environment={"variables":{}}
+            handler="lambda_function.lambda_handler",
+            environment={"variables": {"table": dynamo_table.name}}
         )
 
         # NE PAS TOUCHER !!!!
