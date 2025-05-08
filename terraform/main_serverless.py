@@ -11,7 +11,6 @@ from cdktf_cdktf_provider_aws.s3_bucket import S3Bucket
 from cdktf_cdktf_provider_aws.s3_bucket_cors_configuration import S3BucketCorsConfiguration, S3BucketCorsConfigurationCorsRule
 from cdktf_cdktf_provider_aws.s3_bucket_notification import S3BucketNotification, S3BucketNotificationLambdaFunction
 from cdktf_cdktf_provider_aws.dynamodb_table import DynamodbTable, DynamodbTableAttribute
-import os
 
 
 
@@ -69,7 +68,7 @@ class ServerlessStack(TerraformStack):
             memory_size=128,
             timeout=60,
             role=f"arn:aws:iam::{account_id}:role/LabRole",
-            filename= code.path,
+            filename = code.path,
             handler="lambda_function.lambda_handler",
             environment={"variables": {"table": dynamo_table.name}}
         )
