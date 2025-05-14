@@ -3,7 +3,7 @@ layout: default
 title: "TP noté2 - Faire une API REST 100% serverless 🧰"
 nav_exclude: true
 ---
-
+# TOUTES LES INFORMATIONS POUR LANCER SONT DANS LE GROUPE.MD
 # Devoir noté 2 : Postagram
 
 Ce sujet peut paraître imposant et impossible à terminer mais ce n'est pas le cas. Il ne contient que peu de code à écrire (maximum 100 lignes de python, et une infrastructure déjà vue). Résultat, avancez pas à pas, il n'est pas demandé de le rendre à la fin du TP. Le rendu final est attendu pour le 14 mai.
