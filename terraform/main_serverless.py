@@ -11,6 +11,7 @@ from cdktf_cdktf_provider_aws.s3_bucket import S3Bucket
 from cdktf_cdktf_provider_aws.s3_bucket_cors_configuration import S3BucketCorsConfiguration, S3BucketCorsConfigurationCorsRule
 from cdktf_cdktf_provider_aws.s3_bucket_notification import S3BucketNotification, S3BucketNotificationLambdaFunction
 from cdktf_cdktf_provider_aws.dynamodb_table import DynamodbTable, DynamodbTableAttribute
+from cdktf_cdktf_provider_aws.dynamodb_table import DynamodbTableGlobalSecondaryIndex
 
 
 
@@ -19,8 +20,6 @@ class ServerlessStack(TerraformStack):
     def __init__(self, scope: Construct, id: str):
         super().__init__(scope, id)
         AwsProvider(self, "AWS", region="us-east-1")
-
-        account_id = DataAwsCallerIdentity(self, "acount_id").account_id
         
         bucket = S3Bucket(
             self, "bucket",
@@ -46,18 +45,28 @@ class ServerlessStack(TerraformStack):
             hash_key="user",
             range_key="id",
             attribute=[
-                DynamodbTableAttribute(name="id",type="S" ),
-                DynamodbTableAttribute(name="user",type="S" )
+                DynamodbTableAttribute(name="id", type="S"),
+                DynamodbTableAttribute(name="user", type="S"),
+                DynamodbTableAttribute(name="labels", type="S"),  # utile pour index
             ],
             billing_mode="PROVISIONED",
             read_capacity=5,
-            write_capacity=5
+            write_capacity=5,
+            global_secondary_index=[
+                DynamodbTableGlobalSecondaryIndex(
+                    name="LabelsIndex",
+                    hash_key="labels",
+                    projection_type="ALL",
+                    read_capacity=5,
+                    write_capacity=5
+                )
+            ]
         )
 
         code = TerraformAsset(
             self, "code",
-            path="./lambda",
-            type=AssetType.ARCHIVE
+            path="./lambda/lambda_function.zip",
+            type=AssetType.FILE
             )
 
         account_id = DataAwsCallerIdentity(self, "caller").account_id
@@ -95,6 +104,8 @@ class ServerlessStack(TerraformStack):
             bucket=bucket.id,
             depends_on=[permission]
         )
+        TerraformOutput(self, "bucket_name", value=bucket.bucket)
+        TerraformOutput(self, "table_name", value=dynamo_table.name)
 
 
 

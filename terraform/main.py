@@ -11,6 +11,7 @@ from cdktf_cdktf_provider_aws.lb_listener import LbListener, LbListenerDefaultAc
 from cdktf_cdktf_provider_aws.autoscaling_group import AutoscalingGroup
 from cdktf_cdktf_provider_aws.security_group import SecurityGroup, SecurityGroupIngress, SecurityGroupEgress
 from cdktf_cdktf_provider_aws.data_aws_caller_identity import DataAwsCallerIdentity
+from cdktf_cdktf_provider_aws.iam import IamRole, IamPolicy, IamPolicyAttachment
 
 import base64
 
@@ -42,14 +43,55 @@ class ServerStack(TerraformStack):
     def __init__(self, scope: Construct, id: str):
         super().__init__(scope, id)
 
+        # Crée les ressources de base de l'infrastructure
         account_id, security_group, subnets, default_vpc = self.infra_base()
+
+        # Création du rôle IAM pour Lambda
+        lambda_role = IamRole(self, "LambdaRole",
+            assume_role_policy_document={
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "lambda.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }]
+            }
+        )
+
+        # Créer la politique IAM pour Lambda
+        lambda_policy = IamPolicy(self, "LambdaPolicy",
+            policy={
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:PutObjectTagging",
+                            "rekognition:DetectLabels",
+                            "dynamodb:UpdateItem"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+        )
+
+        # Attacher la politique au rôle Lambda
+        IamPolicyAttachment(self, "LambdaPolicyAttachment",
+            policy_arn=lambda_policy.arn,
+            roles=[lambda_role.name]
+        )
+
+        # Autres ressources (EC2, Load Balancer, etc.)
 
         launch_template = LaunchTemplate(
             self, "launch_template",
-            image_id="ami-0c55b159cbfafe1f0",  # Amazon Linux 2 ou remplace par ton propre AMI Ubuntu
+            image_id="ami-053b0d53c279acc90",  # Ubuntu 22.04
             instance_type="t2.micro",
             vpc_security_group_ids=[security_group.id],
-            key_name="your-key-name",  # 🔁 À remplacer par ta key pair
+            key_name="tp-key", 
             user_data=user_data,
             tags={"Name": "TP noté"},
             iam_instance_profile={"name": "LabInstanceProfile"}

@@ -15,7 +15,7 @@ dynamodb = boto3.resource('dynamodb')
 rekognition = boto3.client('rekognition')
 
 # Nom de la table DynamoDB, défini via variable d’environnement dans CDK
-DDB_TABLE = os.getenv("DDB_TABLE")  # 🟡 À bien définir dans CDK plus tard
+DDB_TABLE = os.getenv("table")  # 🟡 À bien définir dans CDK plus tard
 table = dynamodb.Table(DDB_TABLE)
 
 def lambda_handler(event, context):
