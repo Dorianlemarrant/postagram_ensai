@@ -68,9 +68,20 @@ class ServerStack(TerraformStack):
                     {
                         "Effect": "Allow",
                         "Action": [
-                            "s3:PutObjectTagging",
-                            "rekognition:DetectLabels",
-                            "dynamodb:UpdateItem"
+                            "dynamodb:CreateTable",
+                            "dynamodb:UpdateItem",
+                            "dynamodb:DescribeTable",
+                            "dynamodb:PutItem"
+                        ],
+                        "Resource": "*"
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:CreateBucket",
+                            "s3:PutObject",
+                            "s3:GetObject",
+                            "s3:DeleteObject"
                         ],
                         "Resource": "*"
                     }
