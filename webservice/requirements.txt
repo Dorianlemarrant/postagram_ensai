@@ -1,3 +1,5 @@
 python-dotenv
 boto3
 fastapi[all]
+cdktf
+constructs
