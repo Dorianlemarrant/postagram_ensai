@@ -414,3 +414,33 @@ Cette architecture est gérée par le fichier `main_server.py`. Le script contie
 - Le webservice écoutera sur le port 8080 et pas 80 comme dans le TP. Vous allez devoir changer le port de du `LbTargetGroup`
 - Pour que vos instances EC2 aient le droit d’interagir avec S3 et DynamoDB il faut leur donner les droits. Cela passe par l'attribut iam_instance_profile de la classe `LaunchTemplate`. Cet attributs attend un dictionnaire en paramètre `{"arn" : "arn_du_role"}`. Le rôle que vous passerez sera le même rôle que pour la lambda. 
 s
+
+# Utilisation
+
+## Necessite
+
+On nécessite un compte étudiant AWS pour avoir le role 'Labrole' et l'instance profile 'LabInstanceProfile'.
+Il faut aussi mettre à jour les informations de connections dans home/.aws/credentials ou via 
+```
+aws configure
+```
+dans /terraform
+
+```
+./_manage_infra.sh deploy 
+
+```
+pour pouvoir déployer tous les objets en même temps ( à noter que  cdktf deploy -a python3 main_serverless.py est possible)
+pareil pour server
+
+
+Avant le webservice coller la valeur de l'adresse DNS du Load Balanceur donnée dans la sortie Terraform.
+Coller cette valleur dans webapp/src/index.js dans la variable axios.de
+dans webservice/
+```
+pip install -r requirements.txt"
+```
+dans webapp/
+```
+npm start
+```
