@@ -21,3 +21,6 @@ Après cela:
 ```bash
 cdktf deploy -a "python3 main_server.py"
 ```
+
+On s'est rendu compte qu'en rajoutant from dotenv import load_dotenv et load_dotenv() dans le fichier getSignedUrl.py
+Ca marchait mieux, mais on n'a pas osé y toucher.
