@@ -14,17 +14,12 @@ from cdktf_cdktf_provider_aws.data_aws_caller_identity import DataAwsCallerIdent
 
 import base64
 
-# Mettez ici le nom du bucket S3 crée dans la partie serverless
-bucket=""
+# Infos provenant de la partie serverless
+bucket = "s320250514144543646900000001"
+dynamo_table = "posts"
+your_repo = "https://github.com/Dorianlemarrant/postagram_ensai"
 
-# Mettez ici le nom de la table dynamoDB créée dans la partie serverless
-dynamo_table="posts"
-
-# Mettez ici l'url de votre dépôt github. Votre dépôt doit être public !!!
-your_repo="https://github.com/Dorianlemarrant/postagram_ensai"
-
-# Le user data pour lancer votre websservice. Il fonctionne tel quel
-user_data= base64.b64encode(f"""#!/bin/bash
+user_data = base64.b64encode(f"""#!/bin/bash
 echo "userdata-start"        
 apt update
 apt install -y python3-pip python3.12-venv
@@ -37,119 +32,88 @@ echo 'BUCKET={bucket}' >> .env
 echo 'DYNAMO_TABLE={dynamo_table}' >> .env
 pip3 install -r requirements.txt
 venv/bin/python app.py
-echo "userdata-end""".encode("ascii")).decode("ascii")
+echo "userdata-end"
+""".encode("ascii")).decode("ascii")
 
 
 class ServerStack(TerraformStack):
-    
     def __init__(self, scope: Construct, id: str):
         super().__init__(scope, id)
-
-        # account_id = l'id de votre compte
-        # security_group = le security groupe pour vos instances EC2
         account_id, security_group, subnets, default_vpc = self.infra_base()
-        
+
         launch_template = LaunchTemplate(
-            self, "launch template",
-            image_id=""
-            instance_type=", # le type de l'instance
-            vpc_security_group_ids = [],
-            key_name="",
-            user_data=,
-            tags={"Name":"TP noté"},
-            iam_instance_profile={"name":"LabInstanceProfile"}
-            )
-    
+            self, "launch_template",
+            image_id="ami-053b0d53c279acc90",  # Ubuntu Server 22.04 LTS us-east-1
+            instance_type="t2.micro",
+            vpc_security_group_ids=[security_group.id],
+            key_name="my-keypair",  
+            user_data=user_data,
+            tags={"Name": "TP-noté"},
+            iam_instance_profile={"name": "LabInstanceProfile"}
+        )
 
         lb = Lb(
             self, "lb",
-            load_balancer_type="",
-            security_groups=[],
-            subnets=
+            load_balancer_type="application",
+            security_groups=[security_group.id],
+            subnets=subnets
         )
 
-        target_group=LbTargetGroup(
-            self, "tg_group",
-            port=,
-            protocol="",
-            vpc_id=,
-            target_type=""
+        target_group = LbTargetGroup(
+            self, "target_group",
+            port=8080,
+            protocol="HTTP",
+            vpc_id=default_vpc.id,
+            target_type="instance"
         )
 
         lb_listener = LbListener(
             self, "lb_listener",
-            load_balancer_arn=,
-            port=,
-            protocol="",
-            default_action=[LbListenerDefaultAction()]
+            load_balancer_arn=lb.arn,
+            port=80,
+            protocol="HTTP",
+            default_action=[LbListenerDefaultAction(
+                type="forward",
+                target_group_arn=target_group.arn
+            )]
         )
 
         asg = AutoscalingGroup(
-            self, "",
-            min_size=,
-            max_size=,
-            desired_capacity=,
-            launch_template={"id":},
-            vpc_zone_identifier= ,
-            target_group_arns=[]
+            self, "asg",
+            min_size=1,
+            max_size=3,
+            desired_capacity=1,
+            launch_template={"id": launch_template.id},
+            vpc_zone_identifier=subnets,
+            target_group_arns=[target_group.arn]
         )
 
     def infra_base(self):
-        """
-        Permet de définir une infra de base, vous ne devez pas y toucher !
-        """
         AwsProvider(self, "AWS", region="us-east-1")
-        account_id = DataAwsCallerIdentity(self, "acount_id").account_id
+        account_id = DataAwsCallerIdentity(self, "account_id").account_id
 
-        default_vpc = DefaultVpc(
-            self, "default_vpc"
-        )
-            
-        # Les AZ de us-east-1 sont de la forme us-east-1x 
-        # avec x une lettre dans abcdef. Ne permet pas de déployer
-        # automatiquement ce code sur une autre région. Le code
-        # pour y arriver est vraiment compliqué.
+        default_vpc = DefaultVpc(self, "default_vpc")
+
         az_ids = [f"us-east-1{i}" for i in "abcdef"]
-        subnets= []
-        for i,az_id in enumerate(az_ids):
-            subnets.append(DefaultSubnet(
-            self, f"default_sub{i}",
-            availability_zone=az_id
-        ).id)
-            
+        subnets = [
+            DefaultSubnet(self, f"default_sub{i}", availability_zone=az_id).id
+            for i, az_id in enumerate(az_ids)
+        ]
 
         security_group = SecurityGroup(
             self, "sg-tp",
             ingress=[
-                SecurityGroupIngress(
-                    from_port=22,
-                    to_port=22,
-                    cidr_blocks=["0.0.0.0/0"],
-                    protocol="TCP",
-                ),
-                SecurityGroupIngress(
-                    from_port=80,
-                    to_port=80,
-                    cidr_blocks=["0.0.0.0/0"],
-                    protocol="TCP"
-                ),
-                SecurityGroupIngress(
-                    from_port=8080,
-                    to_port=8080,
-                    cidr_blocks=["0.0.0.0/0"],
-                    protocol="TCP"
-                )
+                SecurityGroupIngress(from_port=22, to_port=22, protocol="TCP", cidr_blocks=["0.0.0.0/0"]),
+                SecurityGroupIngress(from_port=80, to_port=80, protocol="TCP", cidr_blocks=["0.0.0.0/0"]),
+                SecurityGroupIngress(from_port=8080, to_port=8080, protocol="TCP", cidr_blocks=["0.0.0.0/0"]),
             ],
             egress=[
-                SecurityGroupEgress(
-                    from_port=0,
-                    to_port=0,
-                    cidr_blocks=["0.0.0.0/0"],
-                    protocol="-1"
-                )
+                SecurityGroupEgress(from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"])
             ]
-            )
+        )
+
         return account_id, security_group, subnets, default_vpc
+
 
 app = App()
 ServerStack(app, "cdktf_server")
