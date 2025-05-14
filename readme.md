@@ -426,16 +426,19 @@ aws configure
 ```
 dans /terraform
 
-```
-./_manage_infra.sh deploy 
 
-```
 pour pouvoir déployer tous les objets en même temps ( à noter que  cdktf deploy -a python3 main_serverless.py est possible)
 pareil pour server
 
 
 Avant le webservice coller la valeur de l'adresse DNS du Load Balanceur donnée dans la sortie Terraform.
-Coller cette valleur dans webapp/src/index.js dans la variable axios.de
+Coller cette valleur dans webapp/src/index.js dans la variable
+
+Important de mettre de le .env les variable 
+'''
+DYNAMO_TABLE=nom de la table
+BUCKET= nom du bucket
+'''
 dans webservice/
 ```
 pip install -r requirements.txt"
@@ -444,3 +447,16 @@ dans webapp/
 ```
 npm start
 ```
+
+Par la suite on peut lancer 
+```
+./_manage_infra.sh deploy 
+
+```
+ou fermer avec
+
+```
+./_manage_infra.sh destroy
+
+```
+

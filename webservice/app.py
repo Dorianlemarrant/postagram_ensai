@@ -84,16 +84,25 @@ async def post_a_post(post: Post, authorization: str | None = Header(default=Non
 @app.get("/posts")
 async def get_all_posts(user: Union[str, None] = None):
     """
-    Récupère tout les postes. 
-    - Si un user est présent dans le requête, récupère uniquement les siens
-    - Si aucun user n'est présent, récupère TOUS les postes de la table !!
+    Récupère tous les posts. 
+    - Si un user est présent dans la requête, récupère uniquement les siens.
+    - Sinon, récupère TOUS les posts de la table.
     """
-    if user :
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table("posts")
+    
+    if user:
         logger.info(f"Récupération des postes de : {user}")
-    else :
+        res = table.scan(
+            FilterExpression="user = :u",
+            ExpressionAttributeValues={":u": user}
+        )
+    else:
         logger.info("Récupération de tous les postes")
-     # Doit retourner une liste de posts
-    return res[""]
+        res = table.scan()
+    
+    return res.get("Items", [])
+
 
     
 @app.delete("/posts/{post_id}")
