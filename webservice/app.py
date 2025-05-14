@@ -59,56 +59,77 @@ bucket = os.getenv("BUCKET")
 ####################################################################################################
 
 
-import uuid
+from boto3.dynamodb.conditions import Key
 
 @app.post("/posts")
 async def post_a_post(post: Post, authorization: str | None = Header(default=None)):
-    """
-    Poste un post ! Les informations du poste sont dans post.title, post.body et le user dans authorization
-    """
     logger.info(f"title : {post.title}")
     logger.info(f"body : {post.body}")
     logger.info(f"user : {authorization}")
-    title = post.title
-    body = post.body
-    user = authorization
+
     str_id = f'{uuid.uuid4()}'
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table("posts")
-    res = table.put_item(Item={'id': str_id, 'user': user, 'title': title, 'body': body})
 
+    item = {
+        'id': f'POST#{str_id}',
+        'user': f'USER#{authorization}',
+        'title': post.title,
+        'body': post.body,
+        'image': '',
+        'label': []
+    }
 
-    # Doit retourner le résultat de la requête la table dynamodb
-    return res
+    res = table.put_item(Item=item)
+    return {"message": "Post créé", "post_id": str_id}
+
 
 @app.get("/posts")
 async def get_all_posts(user: Union[str, None] = None):
-    """
-    Récupère tout les postes. 
-    - Si un user est présent dans le requête, récupère uniquement les siens
-    - Si aucun user n'est présent, récupère TOUS les postes de la table !!
-    """
-    if user :
+    if user:
         logger.info(f"Récupération des postes de : {user}")
-    else :
+        response = table.query(
+            KeyConditionExpression=Key('user').eq(f'USER#{user}')
+        )
+        items = response.get("Items", [])
+    else:
         logger.info("Récupération de tous les postes")
-     # Doit retourner une liste de posts
-    return res[""]
+        response = table.scan()
+        items = response.get("Items", [])
 
-    
+    for item in items:
+        if item.get("image"):
+            item["image"] = s3_client.generate_presigned_url(
+                ClientMethod='get_object',
+                Params={
+                    'Bucket': bucket,
+                    'Key': item["image"]
+                },
+                ExpiresIn=3600
+            )
+
+    return items
+
+
 @app.delete("/posts/{post_id}")
 async def delete_post(post_id: str, authorization: str | None = Header(default=None)):
-    # Doit retourner le résultat de la requête la table dynamodb
-    logger.info(f"post id : {post_id}")
-    logger.info(f"user: {authorization}")
-    # Récupération des infos du poste
+    user_key = f'USER#{authorization}'
+    post_key = f'POST#{post_id}'
 
-    # S'il y a une image on la supprime de S3
+    response = table.get_item(Key={'user': user_key, 'id': post_key})
+    item = response.get("Item")
 
-    # Suppression de la ligne dans la base dynamodb
+    if not item:
+        return JSONResponse(status_code=404, content={"message": "Post not found"})
 
-    # Retourne le résultat de la requête de suppression
-    return item
+    if "image" in item and item["image"]:
+        try:
+            s3_client.delete_object(Bucket=bucket, Key=item["image"])
+        except Exception as e:
+            logger.warning(f"Erreur S3 : {e}")
+
+    table.delete_item(Key={'user': user_key, 'id': post_key})
+
+    return {"message": "Post supprimé"}
+
 
 
 
