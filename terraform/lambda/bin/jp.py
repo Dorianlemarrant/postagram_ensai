@@ -1,4 +1,4 @@
-#!/home/ensai/dm cloud/postagram-ensemble/postagram_ensai/venv/bin/python3
+#!/usr/bin/python3
 
 import sys
 import json

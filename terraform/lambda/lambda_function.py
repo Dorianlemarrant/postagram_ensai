@@ -1,30 +1,35 @@
 import json
-from urllib.parse import unquote_plus
-import boto3
-import os
 import logging
-print('Loading function')
+import os
+from urllib.parse import unquote_plus
+
+import boto3
+
+# Initialisation des logs
 logger = logging.getLogger()
-logger.setLevel("INFO")
+logger.setLevel(logging.INFO)
+
+# Clients AWS
 s3 = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
-reckognition = boto3.client('rekognition')
+rekognition = boto3.client('rekognition')
 
-table = dynamodb.Table(os.getenv("table"))
+# Nom de la table DynamoDB, défini via variable d’environnement dans CDK
+DDB_TABLE = os.getenv("DDB_TABLE")  # 🟡 À bien définir dans CDK plus tard
+table = dynamodb.Table(DDB_TABLE)
 
 def lambda_handler(event, context):
-    logger.info(json.dumps(event, indent=2))
-    bucket = event["Records"][0]["s3"]["bucket"]["name"]
-    key = unquote_plus(event["Records"][0]["s3"]["object"]["key"]) # <- A modifier !!!!
+    logger.info("Événement reçu : %s", json.dumps(event, indent=2))
 
-    # Récupération de l'utilisateur et de l'UUID de la tâche
     try:
+        bucket = event["Records"][0]["s3"]["bucket"]["name"]
+        key = unquote_plus(event["Records"][0]["s3"]["object"]["key"])
         user, task_uuid = key.split('/')[:2]
-    except ValueError:
-        logger.error("Nom de fichier invalide, attendu: user/id/image.jpg")
-        return
+    except (KeyError, ValueError, IndexError) as e:
+        logger.error(f"Erreur lors de l'extraction des infos S3 ou parsing clé: {e}")
+        return {"statusCode": 400, "body": "Erreur dans la structure de l'événement"}
 
-    # Ajout des tags user et task_uuid
+    # 🏷️ Ajout de tags S3
     try:
         s3.put_object_tagging(
             Bucket=bucket,
@@ -36,31 +41,32 @@ def lambda_handler(event, context):
                 ]
             }
         )
+        logger.info(f"Tags ajoutés à l’objet S3 : {user}, {task_uuid}")
     except Exception as e:
-        logger.error(f"Erreur lors de l'ajout des tags: {e}")
-        return
-    # Appel à reckognition
-    # Appel au service, en passant l'image à analyser (bucket et key)
-    # On souhaite au maximum 5 labels et uniquement les labels avec un taux de confiance >0.75
-    # Vous pouvez faire varier ces valeurs.
-    label_data = reckognition.detect_labels(
-        Image={
-            "S3Object": {
-                "Bucket": bucket,
-                "Name": key
-            }
-        },
-        MaxLabels=5,
-        MinConfidence=0.75
-    )
-    logger.info(f"Labels data : {label_data}")
+        logger.error(f"Erreur lors de l'ajout des tags S3 : {e}")
+        return {"statusCode": 500, "body": "Erreur lors du tagging"}
 
-    # Récupération des résultats des labels
-    labels = [label["Name"] for label in label_data.get("Labels", [])]
-    logger.info(f"Labels détectés : {labels}")
+    # 📷 Analyse d’image via Rekognition
+    try:
+        response = rekognition.detect_labels(
+            Image={
+                "S3Object": {
+                    "Bucket": bucket,
+                    "Name": key
+                }
+            },
+            MaxLabels=5,
+            MinConfidence=75.0
+        )
+        labels = [label["Name"] for label in response.get("Labels", [])]
+        logger.info(f"Labels détectés : {labels}")
+    except Exception as e:
+        logger.error(f"Erreur avec Rekognition : {e}")
+        return {"statusCode": 500, "body": "Erreur avec Rekognition"}
 
-    # Mise à jour de la table dynamodb
-    table.update_item(
+    # 🗃️ Mise à jour de DynamoDB
+    try:
+        table.update_item(
             Key={
                 "user": user,
                 "id": task_uuid
@@ -70,3 +76,9 @@ def lambda_handler(event, context):
                 ":labels": labels
             }
         )
+        logger.info("Item DynamoDB mis à jour avec les labels.")
+    except Exception as e:
+        logger.error(f"Erreur lors de la mise à jour DynamoDB : {e}")
+        return {"statusCode": 500, "body": "Erreur DynamoDB"}
+
+    return {"statusCode": 200, "body": f"Image analysée : {labels}"}

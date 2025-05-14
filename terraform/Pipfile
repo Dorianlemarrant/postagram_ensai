@@ -11,5 +11,6 @@ pytest = "*"
 constructs = "*"
 cdktf-cdktf-provider-aws = "==19.63.0"
 cdktf = "==0.20.12"
+exceptiongroup = "*"
 
 [dev-packages]
